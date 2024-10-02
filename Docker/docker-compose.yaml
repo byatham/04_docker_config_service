@@ -1,0 +1,101 @@
+version: '3.8'
+
+services:
+  
+  spring-boot-admin:
+    image: codecentric/spring-boot-admin:2.7.3
+    container_name: spring-boot-admin
+    ports:
+      - "1111:8080"
+    environment:
+      - JAVA_OPTS=-Djava.security.egd=file:/dev/./urandom
+    networks:
+      - monitoring
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:7.10.1
+    container_name: kibana
+    environment:
+      ELASTICSEARCH_HOSTS: http://elasticsearch:9200
+    ports:
+      - "5601:5601"
+    networks:
+      - monitoring
+    volumes:
+      - ./kibana_data:/usr/share/kibana/data # Kibana data persistence
+
+  splunk:
+    image: splunk/splunk:latest
+    container_name: splunk
+    environment:
+      - SPLUNK_START_ARGS=--accept-license
+      - SPLUNK_PASSWORD=SaiDivya@2009
+      - SPLUNK_HEC_TOKEN=12345678-ABCD-1234-ABCD-1234567890AB
+      - SPLUNK_HOME=/opt/splunk   # Ensure environment variable for correct directory
+    ports:
+      - "8000:8000"   # Splunk Web UI
+      - "8088:8088"   # HTTP Event Collector (HEC)
+    networks:
+      - monitoring
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  grafana:
+    image: grafana/grafana
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    networks:
+      - monitoring
+    volumes:
+      - ./grafana_data:/var/lib/grafana # Grafana data persistence
+
+  redis:
+    image: redis:latest
+    container_name: redis
+    ports:
+      - "6379:6379"
+    networks:
+      - monitoring
+    volumes:
+      - ./redis_data:/data # Redis data persistence
+
+  prometheus:
+    image: prom/prometheus
+    container_name: prometheus
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./prometheus_data:/prometheus # Prometheus data persistence
+    ports:
+      - "9090:9090"
+    networks:
+      - monitoring
+
+  zipkin:
+    image: openzipkin/zipkin
+    container_name: zipkin
+    ports:
+      - "9411:9411"
+    networks:
+      - monitoring
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.10.1
+    container_name: elasticsearch
+    environment:
+      - discovery.type=single-node
+    ports:
+      - "9200:9200"
+    networks:
+      - monitoring
+    volumes:
+      - ./elasticsearch_data:/usr/share/elasticsearch/data # Elasticsearch data persistence
+
+networks:
+  monitoring:
+    driver: bridge
